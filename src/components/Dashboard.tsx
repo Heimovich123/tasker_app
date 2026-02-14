@@ -78,6 +78,7 @@ function SortableTaskItem({
     isSelected,
     onSelectToggle,
     activeView,
+    searchQuery,
 }: {
     task: Task;
     project?: Project;
@@ -89,6 +90,7 @@ function SortableTaskItem({
     isSelected?: boolean;
     onSelectToggle?: (id: string) => void;
     activeView?: ViewMode;
+    searchQuery?: string;
 }) {
     const {
         attributes,
@@ -136,6 +138,7 @@ function SortableTaskItem({
                         isSelected={isSelected}
                         onSelectToggle={onSelectToggle}
                         activeView={activeView}
+                        searchQuery={searchQuery}
                     />
                 </div>
             </div>
@@ -195,7 +198,8 @@ export default function Dashboard() {
             filtered = filtered.filter(
                 (t) =>
                     t.title.toLowerCase().includes(q) ||
-                    t.description.toLowerCase().includes(q)
+                    t.description.toLowerCase().includes(q) ||
+                    (t.subtasks && t.subtasks.some(s => s.title.toLowerCase().includes(q)))
             );
         }
 
@@ -634,6 +638,7 @@ export default function Dashboard() {
                                                                     isSelected={selectedIds.has(task.id)}
                                                                     onSelectToggle={handleSelectToggle}
                                                                     activeView={activeView}
+                                                                    searchQuery={filters.search}
                                                                 />
                                                             ))}
                                                         </div>
@@ -657,6 +662,7 @@ export default function Dashboard() {
                                                         isSelected={selectedIds.has(task.id)}
                                                         onSelectToggle={handleSelectToggle}
                                                         activeView={activeView}
+                                                        searchQuery={filters.search}
                                                     />
                                                 ))}
                                             </div>
@@ -678,6 +684,7 @@ export default function Dashboard() {
                                                     onUpdate={() => { }}
                                                     onEdit={() => { }}
                                                     onDelete={() => { }}
+                                                    searchQuery={filters.search}
                                                 />
                                             </div>
                                         ) : null}

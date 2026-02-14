@@ -35,7 +35,27 @@ interface TaskCardProps {
     isSelected?: boolean;
     onSelectToggle?: (id: string) => void;
     activeView?: ViewMode;
+    searchQuery?: string;
 }
+
+// Helper to highlight matching text
+const highlightMatch = (text: string, query?: string) => {
+    if (!query) return text;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+        <span>
+            {parts.map((part, i) =>
+                part.toLowerCase() === query.toLowerCase() ? (
+                    <span key={i} className="bg-yellow-500/30 text-yellow-200 font-bold px-0.5 rounded">
+                        {part}
+                    </span>
+                ) : (
+                    part
+                )
+            )}
+        </span>
+    );
+};
 
 const priorityDot: Record<Priority, string> = {
     high: 'bg-[var(--priority-high)]',
@@ -66,9 +86,20 @@ export default function TaskCard({
     isSelected,
     onSelectToggle,
     activeView,
+    searchQuery,
 }: TaskCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+
+    // Auto-expand if subtasks match search query
+    useEffect(() => {
+        if (searchQuery && task.subtasks && task.subtasks.length > 0) {
+            const hasMatch = task.subtasks.some(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()));
+            if (hasMatch) {
+                setIsExpanded(true);
+            }
+        }
+    }, [searchQuery, task.subtasks]);
     const [showQuickActions, setShowQuickActions] = useState<'priority' | 'project' | 'date' | 'status' | 'recurrence' | null>(null);
     const [isCompleting, setIsCompleting] = useState(false);
 
@@ -432,7 +463,7 @@ export default function TaskCard({
                                         !isTaskMatching ? 'text-muted' : 'text-foreground'}`}
                                 title="Нажмите чтобы редактировать"
                             >
-                                {task.title}
+                                {highlightMatch(task.title, searchQuery)}
                             </h3>
                         )}
 
@@ -522,7 +553,7 @@ export default function TaskCard({
                             className={`text-[14px] leading-relaxed mb-3 cursor-text text-muted hover:text-foreground transition-colors ${isExpanded ? '' : 'line-clamp-2'}`}
                             title="Нажмите чтобы редактировать"
                         >
-                            {task.description}
+                            {highlightMatch(task.description, searchQuery)}
                         </p>
                     ) : null}
 
@@ -546,6 +577,7 @@ export default function TaskCard({
                                                 onSetDate={(offset) => handleSubtaskSetDate(sub.id, offset)}
                                                 onSetDateDirect={(dateStr) => handleSubtaskSetDateDirect(sub.id, dateStr)}
                                                 onCyclePriority={() => handleSubtaskCyclePriority(sub.id)}
+                                                searchQuery={searchQuery}
                                             />
                                         ))}
                                     </div>
@@ -803,6 +835,7 @@ function SortableSubtaskItem({
     onSetDate,
     onSetDateDirect,
     onCyclePriority,
+    searchQuery,
 }: {
     subtask: Subtask;
     dimmed?: boolean;
@@ -811,6 +844,7 @@ function SortableSubtaskItem({
     onSetDate: (daysOffset: number) => void;
     onSetDateDirect: (dateStr: string) => void;
     onCyclePriority: () => void;
+    searchQuery?: string;
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -913,7 +947,7 @@ function SortableSubtaskItem({
 
                 {/* Title */}
                 <span className={`text-[13px] flex-1 ${subtask.completed ? 'line-through text-muted' : 'text-foreground'}`}>
-                    {subtask.title}
+                    {highlightMatch(subtask.title, searchQuery)}
                 </span>
 
                 {/* Date badge with ref */}
