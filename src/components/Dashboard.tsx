@@ -23,7 +23,7 @@ import {
     recordCompletion,
     decrementCompletion,
 } from '@/lib/storage';
-import { isToday, isTomorrow, isThisWeek, isThisMonth, formatDateFull, generateId, getTodayISO, toLocalYMD } from '@/lib/utils';
+import { isToday, isTomorrow, isThisWeek, isThisMonth, isPastDue, formatDateFull, generateId, getTodayISO, toLocalYMD } from '@/lib/utils';
 import Sidebar from '@/components/Sidebar';
 import TaskCard from '@/components/TaskCard';
 import TaskModal from '@/components/TaskModal';
@@ -156,7 +156,6 @@ export default function Dashboard() {
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [statsKey, setStatsKey] = useState(0);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [selectionMode, setSelectionMode] = useState(false);
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
     // Load data
@@ -208,6 +207,20 @@ export default function Dashboard() {
         // Status filter
         if (filters.status !== 'all') {
             filtered = filtered.filter((t) => t.status === filters.status);
+        }
+
+        // Date filter
+        if (filters.dateFilter !== 'all') {
+            filtered = filtered.filter((t) => {
+                switch (filters.dateFilter) {
+                    case 'today': return isToday(t.dueDate);
+                    case 'tomorrow': return isTomorrow(t.dueDate);
+                    case 'week': return isThisWeek(t.dueDate);
+                    case 'overdue': return isPastDue(t.dueDate) && t.status !== 'done';
+                    case 'no_date': return !t.dueDate;
+                    default: return true;
+                }
+            });
         }
 
         // Sort by order, then priority, then date
@@ -338,9 +351,8 @@ export default function Dashboard() {
         setToastMessage(null);
     }, []);
 
-    const handleEditTask = useCallback((task: Task) => {
-        setEditingTask(task);
-        setShowTaskModal(true);
+    const handleEditTask = useCallback((_task: Task) => {
+        // Всё редактируется инлайн на карточке — модалка не нужна
     }, []);
 
     // ── Project handlers ──
@@ -414,7 +426,6 @@ export default function Dashboard() {
 
     const handleClearSelection = useCallback(() => {
         setSelectedIds(new Set());
-        setSelectionMode(false);
     }, []);
 
     const handleBulkSetPriority = useCallback((priority: Priority) => {
@@ -511,50 +522,31 @@ export default function Dashboard() {
                             </div>
                             <p className="text-[13px] text-muted">
                                 {activeView === 'today' ? todayFormatted : activeView === 'tomorrow' ? tomorrowFormatted : ''}
-                                {totalCount > 0 && (
-                                    <span>
-                                        {(activeView === 'today' || activeView === 'tomorrow') ? ' · ' : ''}
-                                        {doneCount} из {totalCount} выполнено
-                                    </span>
-                                )}
                             </p>
                         </div>
-
-                        <div className="flex items-center gap-3">
-                            {/* Selection mode toggle */}
-                            <button
-                                onClick={() => { setSelectionMode(!selectionMode); if (selectionMode) handleClearSelection(); }}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-all
-                                    ${selectionMode
-                                        ? 'bg-accent/10 text-accent'
-                                        : 'text-muted hover:text-foreground hover:bg-white/5'
-                                    }`}
-                                title="Массовые действия"
-                            >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                                </svg>
-                                {selectionMode ? 'Готово' : 'Выбрать'}
-                            </button>
-
-                            {totalCount > 0 && (
-                                <div className="relative w-10 h-10">
-                                    <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-                                        <circle cx="18" cy="18" r="14" fill="none" stroke="var(--border)" strokeWidth="3" />
-                                        <circle
-                                            cx="18" cy="18" r="14" fill="none" stroke="var(--accent)" strokeWidth="3"
-                                            strokeLinecap="round"
-                                            strokeDasharray={`${progressPercent * 0.88} 88`}
-                                            className="transition-all duration-500"
-                                        />
-                                    </svg>
-                                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-accent">
-                                        {progressPercent}%
-                                    </span>
-                                </div>
-                            )}
-                        </div>
                     </div>
+
+                    {/* Progress Bar */}
+                    {totalCount > 0 && (
+                        <div className="mt-3 flex items-center gap-3">
+                            <div className="flex-1 h-2 rounded-full bg-border/50 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full transition-all duration-700 ease-out"
+                                    style={{
+                                        width: `${progressPercent}%`,
+                                        background: 'linear-gradient(90deg, var(--accent), var(--success))',
+                                    }}
+                                />
+                            </div>
+                            <span className={`text-[13px] font-bold tabular-nums min-w-[3.5rem] text-right ${progressPercent === 100 ? 'text-[var(--success)]' : 'text-accent'
+                                }`}>
+                                {progressPercent}%
+                            </span>
+                            <span className="text-[12px] text-muted">
+                                {doneCount}/{totalCount}
+                            </span>
+                        </div>
+                    )}
                 </header>
 
                 {/* Stats Bar (only on Today view) */}
@@ -565,16 +557,15 @@ export default function Dashboard() {
                 )}
 
                 {/* Quick Add + Search */}
-                <div className="px-8 pt-4 pb-0 flex-shrink-0">
+                <div className="px-8 pt-4 pb-0 flex-shrink-0 space-y-3">
+                    <SearchFilterBar
+                        filters={filters}
+                        onFiltersChange={setFilters}
+                    />
                     <QuickAddInput
                         currentProjectId={selectedProjectId}
                         onAddTask={handleSaveTask}
-                        onOpenFullModal={() => {
-                            setEditingTask(null);
-                            setShowTaskModal(true);
-                        }}
                     />
-                    <SearchFilterBar filters={filters} onFiltersChange={setFilters} />
                 </div>
 
                 {/* Content */}
@@ -586,6 +577,7 @@ export default function Dashboard() {
                             onToggleStatus={handleToggleStatus}
                             onEdit={handleEditTask}
                             onDelete={handleDeleteTask}
+                            onUpdate={handleSaveTask}
                         />
                     ) : activeView === 'month' ? (
                         <MonthView
@@ -640,7 +632,7 @@ export default function Dashboard() {
                                                                     onEdit={handleEditTask}
                                                                     onDelete={handleDeleteTask}
                                                                     isSelected={selectedIds.has(task.id)}
-                                                                    onSelectToggle={selectionMode ? handleSelectToggle : undefined}
+                                                                    onSelectToggle={handleSelectToggle}
                                                                     activeView={activeView}
                                                                 />
                                                             ))}
@@ -663,7 +655,7 @@ export default function Dashboard() {
                                                         onEdit={handleEditTask}
                                                         onDelete={handleDeleteTask}
                                                         isSelected={selectedIds.has(task.id)}
-                                                        onSelectToggle={selectionMode ? handleSelectToggle : undefined}
+                                                        onSelectToggle={handleSelectToggle}
                                                         activeView={activeView}
                                                     />
                                                 ))}

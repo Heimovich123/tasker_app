@@ -68,21 +68,14 @@ export function isThisWeek(dateStr: string): boolean {
     if (!dateStr) return false;
     const date = parseLocalYMD(dateStr);
     const today = new Date();
-    // Reset today to midnight
     today.setHours(0, 0, 0, 0);
 
-    const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay(); // 1 (Mon) - 7 (Sun)
-
-    // Calculate start of week (Monday)
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - dayOfWeek + 1);
-
-    // Calculate end of week (Sunday)
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    // Неделя = сегодня + 6 дней вперёд
+    const endOfWeek = new Date(today);
+    endOfWeek.setDate(today.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
 
-    return date >= startOfWeek && date <= endOfWeek;
+    return date >= today && date <= endOfWeek;
 }
 
 export function isThisMonth(dateStr: string): boolean {
@@ -95,17 +88,15 @@ export function isThisMonth(dateStr: string): boolean {
     );
 }
 
-export function getWeekDates(): Date[] {
+export function getWeekDates(weekOffset: number = 0): Date[] {
     const today = new Date();
-    const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - dayOfWeek + 1);
-    monday.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    today.setDate(today.getDate() + weekOffset * 7);
 
     const dates: Date[] = [];
     for (let i = 0; i < 7; i++) {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
         dates.push(d);
     }
     return dates;

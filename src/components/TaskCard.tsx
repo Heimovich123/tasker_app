@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Task, Project, Priority, Subtask, ViewMode, PRIORITY_LABELS, STATUS_LABELS, RECURRENCE_LABELS } from '@/types';
+import { Task, Project, Priority, TaskStatus, RecurrenceType, Subtask, ViewMode, PRIORITY_LABELS, STATUS_LABELS, RECURRENCE_LABELS } from '@/types';
 import { formatDate, isPastDue, isToday, isTomorrow, isThisWeek, isThisMonth, generateId } from '@/lib/utils';
 import {
     DndContext,
@@ -69,7 +69,7 @@ export default function TaskCard({
 }: TaskCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
-    const [showQuickActions, setShowQuickActions] = useState<'priority' | 'project' | 'date' | null>(null);
+    const [showQuickActions, setShowQuickActions] = useState<'priority' | 'project' | 'date' | 'status' | 'recurrence' | null>(null);
     const [isCompleting, setIsCompleting] = useState(false);
 
     // Inline editing state
@@ -84,9 +84,11 @@ export default function TaskCard({
     const priorityBtnRef = useRef<HTMLButtonElement>(null);
     const dateBtnRef = useRef<HTMLButtonElement>(null);
     const projectBtnRef = useRef<HTMLButtonElement>(null);
+    const statusBtnRef = useRef<HTMLButtonElement>(null);
+    const recurrenceBtnRef = useRef<HTMLButtonElement>(null);
     const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-    const openQuickAction = useCallback((type: 'priority' | 'project' | 'date', btnRef: React.RefObject<HTMLButtonElement | null>) => {
+    const openQuickAction = useCallback((type: 'priority' | 'project' | 'date' | 'status' | 'recurrence', btnRef: React.RefObject<HTMLButtonElement | null>) => {
         if (showQuickActions === type) {
             setShowQuickActions(null);
             return;
@@ -334,6 +336,24 @@ export default function TaskCard({
         }
     };
 
+    const handleSetStatus = (e: React.MouseEvent, newStatus: TaskStatus) => {
+        e.stopPropagation();
+        const now = new Date().toISOString();
+        onUpdate({
+            ...task,
+            status: newStatus,
+            completedAt: newStatus === 'done' ? now : null,
+            updatedAt: now,
+        });
+        setShowQuickActions(null);
+    };
+
+    const handleSetRecurrence = (e: React.MouseEvent, rec: RecurrenceType) => {
+        e.stopPropagation();
+        onUpdate({ ...task, recurrence: rec, updatedAt: new Date().toISOString() });
+        setShowQuickActions(null);
+    };
+
     // Subtask date — direct string
     const handleSubtaskSetDateDirect = (subtaskId: string, dateStr: string) => {
         const updatedSubtasks = task.subtasks.map((s) =>
@@ -356,14 +376,14 @@ export default function TaskCard({
             `}
         >
             <div className="flex items-start gap-3 w-full">
-                {/* Selection checkbox */}
+                {/* Selection checkbox — appears on hover */}
                 {onSelectToggle && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onSelectToggle(task.id); }}
                         className={`mt-1 w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all duration-200
                             ${isSelected
                                 ? 'bg-accent border-accent'
-                                : 'border-muted/30 hover:border-accent'
+                                : 'border-muted/30 hover:border-accent opacity-0 group-hover:opacity-100'
                             }`}
                     >
                         {isSelected && (
@@ -455,14 +475,28 @@ export default function TaskCard({
                                     </button>
                                 )}
 
-                                {/* Full modal */}
+                                {/* Status */}
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+                                    ref={statusBtnRef}
+                                    onClick={(e) => { e.stopPropagation(); openQuickAction('status', statusBtnRef); }}
                                     className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-muted hover:text-foreground transition-all"
-                                    title="Все параметры"
+                                    title="Статус"
                                 >
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </button>
+
+                                {/* Recurrence */}
+                                <button
+                                    ref={recurrenceBtnRef}
+                                    onClick={(e) => { e.stopPropagation(); openQuickAction('recurrence', recurrenceBtnRef); }}
+                                    className={`w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center transition-all
+                                        ${task.recurrence && task.recurrence !== 'none' ? 'text-accent' : 'text-muted hover:text-foreground'}`}
+                                    title="Повторение"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                     </svg>
                                 </button>
                             </div>
@@ -637,9 +671,9 @@ export default function TaskCard({
                         className="absolute py-1.5 px-1 rounded-xl border border-border bg-[#1a1a28] shadow-2xl animate-scaleIn"
                         style={{
                             top: Math.max(10, dropdownPos.top),
-                            left: Math.max(10, dropdownPos.left - (showQuickActions === 'project' ? 160 : showQuickActions === 'date' ? 150 : 140)),
+                            left: Math.max(10, dropdownPos.left - (showQuickActions === 'recurrence' ? 180 : showQuickActions === 'status' ? 160 : showQuickActions === 'project' ? 160 : showQuickActions === 'date' ? 150 : 140)),
                             transform: 'translateY(-100%)',
-                            minWidth: showQuickActions === 'project' ? 160 : showQuickActions === 'date' ? 150 : 140,
+                            minWidth: showQuickActions === 'recurrence' ? 180 : showQuickActions === 'status' ? 160 : showQuickActions === 'project' ? 160 : showQuickActions === 'date' ? 150 : 140,
                         }}
                         onMouseDown={(e) => e.stopPropagation()}
                     >
@@ -708,6 +742,39 @@ export default function TaskCard({
                                     >
                                         <span style={{ color: p.color }}>{p.icon}</span>
                                         {p.name}
+                                    </button>
+                                ))}
+                            </>
+                        )}
+                        {showQuickActions === 'status' && (
+                            <>
+                                {(Object.entries(STATUS_LABELS) as [TaskStatus, string][]).map(([val, label]) => (
+                                    <button
+                                        key={val}
+                                        onClick={(e) => handleSetStatus(e, val)}
+                                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors
+                                            ${task.status === val ? 'bg-white/5 text-foreground' : 'text-muted hover:text-foreground hover:bg-white/5'}`}
+                                    >
+                                        <span className={`w-2 h-2 rounded-full ${val === 'done' ? 'bg-[var(--success)]' :
+                                            val === 'in_progress' ? 'bg-[var(--warning)]' :
+                                                'bg-muted/50'
+                                            }`} />
+                                        {label}
+                                    </button>
+                                ))}
+                            </>
+                        )}
+                        {showQuickActions === 'recurrence' && (
+                            <>
+                                {(Object.entries(RECURRENCE_LABELS) as [RecurrenceType, string][]).map(([val, label]) => (
+                                    <button
+                                        key={val}
+                                        onClick={(e) => handleSetRecurrence(e, val)}
+                                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors
+                                            ${task.recurrence === val ? 'bg-white/5 text-foreground' : 'text-muted hover:text-foreground hover:bg-white/5'}`}
+                                    >
+                                        {val === 'none' ? '—' : '↻'}
+                                        <span className="ml-0.5">{label}</span>
                                     </button>
                                 ))}
                             </>
