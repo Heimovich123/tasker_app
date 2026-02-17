@@ -469,7 +469,7 @@ export default function TaskCard({
 
                         {/* Quick Action Buttons */}
                         <div className="flex items-center gap-1 flex-shrink-0">
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" ref={quickActionsRef}>
+                            <div className="flex items-center gap-1" ref={quickActionsRef}>
                                 {/* Priority */}
                                 <button
                                     ref={priorityBtnRef}
@@ -672,7 +672,7 @@ export default function TaskCard({
                         </div>
 
                         {/* Bottom actions */}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1">
                             <button
                                 onClick={handleStartAddingSubtask}
                                 className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-muted hover:text-accent transition-colors"
@@ -887,8 +887,7 @@ function SortableSubtaskItem({
 
     const subtaskStyle: React.CSSProperties = {
         ...style,
-        opacity: isDragging ? undefined : 1,
-        display: dimmed ? 'none' : 'flex', // Hide non-matching subtasks completely in filtered views
+        opacity: isDragging ? undefined : dimmed ? 0.4 : 1,
     };
 
     return (

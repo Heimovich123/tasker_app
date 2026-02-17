@@ -1,0 +1,59 @@
+{
+  "tasks": [
+    {
+      "id": "f3a7-31c9-6e81-54fa",
+      "title": "покакать",
+      "description": "",
+      "projectId": "0478-9310-33ad-584c",
+      "priority": "medium",
+      "status": "todo",
+      "dueDate": "2026-02-17",
+      "subtasks": [
+        {
+          "id": "adbb-3928-a08a-dbe7",
+          "title": "Поюзать",
+          "completed": false,
+          "dueDate": "2026-02-18",
+          "order": 0
+        },
+        {
+          "id": "2b34-51d4-2e46-37ae",
+          "title": "Погулять",
+          "completed": false,
+          "dueDate": null,
+          "order": 1
+        }
+      ],
+      "recurrence": "none",
+      "order": 0,
+      "completedAt": null,
+      "createdAt": "2026-02-17T14:45:36.784Z",
+      "updatedAt": "2026-02-17T14:46:11.912Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "0478-9310-33ad-584c",
+      "name": "OG GYM TG",
+      "color": "#6366f1",
+      "icon": "◆",
+      "createdAt": "2026-02-17T14:40:04.560Z"
+    }
+  ],
+  "stats": [],
+  "deleted": {
+    "id": "205f-385c-4125-89ee",
+    "title": "Покакать",
+    "description": "",
+    "projectId": null,
+    "priority": "medium",
+    "status": "todo",
+    "dueDate": "2026-02-17",
+    "subtasks": [],
+    "recurrence": "none",
+    "order": 0,
+    "completedAt": null,
+    "createdAt": "2026-02-17T14:39:37.377Z",
+    "updatedAt": "2026-02-17T14:39:37.377Z"
+  }
+}

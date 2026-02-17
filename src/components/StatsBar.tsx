@@ -20,34 +20,34 @@ export default function StatsBar({ tasks }: StatsBarProps) {
     ).length;
 
     useEffect(() => {
-        // Week count: take storage total, replace stale today with live count
-        const rawWeek = getWeekCompletions();
-        const staleToday = getTodayCompletions();
-        setWeekCount(rawWeek - staleToday + todayCount);
-        setStreak(getStreak());
+        async function loadStats() {
+            // Week count: take storage total, replace stale today with live count
+            const rawWeek = await getWeekCompletions();
+            const staleToday = await getTodayCompletions();
+            setWeekCount(rawWeek - staleToday + todayCount);
+            setStreak(await getStreak());
 
-        // Build 7-day mini chart data
-        const stats = getStats();
-        const days: number[] = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const key = d.toISOString().split('T')[0];
-            if (key === today) {
-                // Use live task data for today
-                days.push(todayCount);
-            } else {
-                const record = stats.find((s) => s.date === key);
-                days.push(record?.count ?? 0);
+            // Build 7-day mini chart data
+            const stats = await getStats();
+            const days: number[] = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const key = d.toISOString().split('T')[0];
+                if (key === today) {
+                    // Use live task data for today
+                    days.push(todayCount);
+                } else {
+                    const record = stats.find((s) => s.date === key);
+                    days.push(record?.count ?? 0);
+                }
             }
+            setWeekData(days);
         }
-        setWeekData(days);
+        loadStats();
     }, [tasks, todayCount, today]);
 
     const maxWeek = Math.max(...weekData, 1);
-
-    // Recalculate effective streak considering live today count
-    const effectiveStreak = todayCount > 0 ? Math.max(streak, 1) : (streak > 0 && weekData.length > 0 && weekData[weekData.length - 1] === 0 ? 0 : streak);
 
     return (
         <div className="flex items-center gap-6 px-5 py-3 rounded-xl border border-border bg-card/50">

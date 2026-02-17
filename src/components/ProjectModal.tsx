@@ -106,13 +106,13 @@ export default function ProjectModal({
                                     key={c}
                                     onClick={() => setColor(c)}
                                     className={`w-8 h-8 rounded-full transition-all ${color === c
-                                            ? 'ring-2 ring-offset-2 ring-offset-[#14141e] scale-110'
-                                            : 'hover:scale-110'
+                                        ? 'ring-2 ring-offset-2 ring-offset-[#14141e] scale-110'
+                                        : 'hover:scale-110'
                                         }`}
                                     style={{
                                         backgroundColor: c,
-                                        ringColor: color === c ? c : undefined,
-                                    }}
+                                        '--tw-ring-color': color === c ? c : undefined,
+                                    } as React.CSSProperties}
                                 />
                             ))}
                         </div>

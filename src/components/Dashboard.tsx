@@ -161,10 +161,17 @@ export default function Dashboard() {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
-    // Load data
+    // Load data from API
     useEffect(() => {
-        setTasks(getTasks());
-        setProjects(getProjects());
+        async function loadData() {
+            const [loadedTasks, loadedProjects] = await Promise.all([
+                getTasks(),
+                getProjects(),
+            ]);
+            setTasks(loadedTasks);
+            setProjects(loadedProjects);
+        }
+        loadData();
     }, []);
 
     // DnD sensors
@@ -280,16 +287,17 @@ export default function Dashboard() {
         [tasks]
     );
 
-    // ── Task handlers ──
-    const handleSaveTask = useCallback((task: Task) => {
-        const isNew = !getTasks().find((t) => t.id === task.id);
-        const updated = isNew ? addTask(task) : updateTask(task);
+    // ── Task handlers (async) ──
+    const handleSaveTask = useCallback(async (task: Task) => {
+        const allTasks = await getTasks();
+        const isNew = !allTasks.find((t) => t.id === task.id);
+        const updated = isNew ? await addTask(task) : await updateTask(task);
         setTasks(updated);
         setShowTaskModal(false);
         setEditingTask(null);
     }, []);
 
-    const handleToggleStatus = useCallback((task: Task) => {
+    const handleToggleStatus = useCallback(async (task: Task) => {
         const newStatus: TaskStatus = task.status === 'done' ? 'todo' : 'done';
         const now = new Date().toISOString();
         const updatedTask = {
@@ -301,7 +309,7 @@ export default function Dashboard() {
 
         // Handle recurrence: if completing a recurring task, create next occurrence
         if (newStatus === 'done' && task.recurrence !== 'none') {
-            recordCompletion();
+            await recordCompletion();
             setStatsKey((k) => k + 1);
 
             // Create next occurrence
@@ -325,32 +333,33 @@ export default function Dashboard() {
                 updatedAt: now,
             };
 
-            let updated = updateTask(updatedTask);
-            updated = addTask(nextTask);
+            await updateTask(updatedTask);
+            const updated = await addTask(nextTask);
             setTasks([...updated]);
             return;
         }
 
         if (newStatus === 'done') {
-            recordCompletion();
+            await recordCompletion();
             setStatsKey((k) => k + 1);
         } else {
             // Un-completing a task: decrement stats
-            decrementCompletion();
+            await decrementCompletion();
             setStatsKey((k) => k + 1);
         }
 
-        const updated = updateTask(updatedTask);
+        const updated = await updateTask(updatedTask);
         setTasks(updated);
     }, []);
 
-    const handleDeleteTask = useCallback((id: string) => {
-        setTasks(deleteTask(id));
+    const handleDeleteTask = useCallback(async (id: string) => {
+        const updated = await deleteTask(id);
+        setTasks(updated);
         setToastMessage('Задача удалена');
     }, []);
 
-    const handleUndoDelete = useCallback(() => {
-        const restored = restoreLastDeleted();
+    const handleUndoDelete = useCallback(async () => {
+        const restored = await restoreLastDeleted();
         setTasks(restored);
         setToastMessage(null);
     }, []);
@@ -359,23 +368,27 @@ export default function Dashboard() {
         // Всё редактируется инлайн на карточке — модалка не нужна
     }, []);
 
-    // ── Project handlers ──
-    const handleSaveProject = useCallback((project: Project) => {
-        const isNew = !getProjects().find((p) => p.id === project.id);
-        const updated = isNew ? addProject(project) : updateProject(project);
+    // ── Project handlers (async) ──
+    const handleSaveProject = useCallback(async (project: Project) => {
+        const allProjects = await getProjects();
+        const isNew = !allProjects.find((p) => p.id === project.id);
+        const updated = isNew ? await addProject(project) : await updateProject(project);
         setProjects(updated);
         setShowProjectModal(false);
         setEditingProject(null);
     }, []);
 
     const handleDeleteProject = useCallback(
-        (id: string) => {
-            setProjects(deleteProject(id));
+        async (id: string) => {
+            const updatedProjects = await deleteProject(id);
+            setProjects(updatedProjects);
             const updatedTasks = tasks.map((t) =>
                 t.projectId === id ? { ...t, projectId: null } : t
             );
-            updatedTasks.forEach((t) => updateTask(t));
-            setTasks(updatedTasks);
+            for (const t of updatedTasks) {
+                await updateTask(t as Task);
+            }
+            setTasks(updatedTasks as Task[]);
             setShowProjectModal(false);
             setEditingProject(null);
             if (selectedProjectId === id) {
@@ -392,7 +405,7 @@ export default function Dashboard() {
     }, []);
 
     const handleDragEnd = useCallback(
-        (event: DragEndEvent) => {
+        async (event: DragEndEvent) => {
             setActiveDragId(null);
             const { active, over } = event;
             if (!over || active.id === over.id) return;
@@ -405,12 +418,13 @@ export default function Dashboard() {
             const reordered = arrayMove(filteredTasks, oldIndex, newIndex);
 
             // Update order values
-            reordered.forEach((task, i) => {
-                task.order = i;
-                updateTask(task);
-            });
+            for (let i = 0; i < reordered.length; i++) {
+                reordered[i].order = i;
+                await updateTask(reordered[i]);
+            }
 
-            setTasks(getTasks());
+            const freshTasks = await getTasks();
+            setTasks(freshTasks);
         },
         [filteredTasks]
     );
@@ -432,41 +446,41 @@ export default function Dashboard() {
         setSelectedIds(new Set());
     }, []);
 
-    const handleBulkSetPriority = useCallback((priority: Priority) => {
+    const handleBulkSetPriority = useCallback(async (priority: Priority) => {
         let updated = tasks;
-        selectedIds.forEach((id) => {
+        for (const id of selectedIds) {
             const t = updated.find((t) => t.id === id);
-            if (t) updated = updateTask({ ...t, priority, updatedAt: new Date().toISOString() });
-        });
+            if (t) updated = await updateTask({ ...t, priority, updatedAt: new Date().toISOString() });
+        }
         setTasks([...updated]);
         handleClearSelection();
     }, [tasks, selectedIds, handleClearSelection]);
 
-    const handleBulkSetDate = useCallback((date: string) => {
+    const handleBulkSetDate = useCallback(async (date: string) => {
         let updated = tasks;
-        selectedIds.forEach((id) => {
+        for (const id of selectedIds) {
             const t = updated.find((t) => t.id === id);
-            if (t) updated = updateTask({ ...t, dueDate: date, updatedAt: new Date().toISOString() });
-        });
+            if (t) updated = await updateTask({ ...t, dueDate: date, updatedAt: new Date().toISOString() });
+        }
         setTasks([...updated]);
         handleClearSelection();
     }, [tasks, selectedIds, handleClearSelection]);
 
-    const handleBulkSetProject = useCallback((projectId: string | null) => {
+    const handleBulkSetProject = useCallback(async (projectId: string | null) => {
         let updated = tasks;
-        selectedIds.forEach((id) => {
+        for (const id of selectedIds) {
             const t = updated.find((t) => t.id === id);
-            if (t) updated = updateTask({ ...t, projectId, updatedAt: new Date().toISOString() });
-        });
+            if (t) updated = await updateTask({ ...t, projectId, updatedAt: new Date().toISOString() });
+        }
         setTasks([...updated]);
         handleClearSelection();
     }, [tasks, selectedIds, handleClearSelection]);
 
-    const handleBulkDelete = useCallback(() => {
+    const handleBulkDelete = useCallback(async () => {
         let updated = tasks;
-        selectedIds.forEach((id) => {
-            updated = deleteTask(id);
-        });
+        for (const id of selectedIds) {
+            updated = await deleteTask(id);
+        }
         setTasks([...updated]);
         setToastMessage(`Удалено задач: ${selectedIds.size}`);
         handleClearSelection();
